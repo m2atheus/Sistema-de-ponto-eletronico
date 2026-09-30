@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sqflite_ffi;
@@ -27,10 +28,12 @@ class LocalDbService {
       databaseFactory = sqflite_ffi.databaseFactoryFfi;
     }
 
-    final caminho = kIsWeb ? 'ponto_aqui.db' : join(await getDatabasesPath(), 'ponto_aqui.db');
+    final caminho = kIsWeb
+        ? 'ponto_aqui.db'
+        : join(await getDatabasesPath(), 'ponto_aqui.db');
     return openDatabase(
       caminho,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE sessao (
@@ -57,7 +60,9 @@ class LocalDbService {
             latitude REAL,
             longitude REAL,
             raio_metros INTEGER,
-            ignora_localizacao INTEGER
+            ignora_localizacao INTEGER,
+            exige_selfie INTEGER DEFAULT 0,
+            politica_fora_perimetro TEXT DEFAULT 'bloquear'
           )
         ''');
 
@@ -99,6 +104,15 @@ class LocalDbService {
             enviada INTEGER DEFAULT 0
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute(
+              "ALTER TABLE setor ADD COLUMN exige_selfie INTEGER DEFAULT 0");
+          await db.execute(
+            "ALTER TABLE setor ADD COLUMN politica_fora_perimetro TEXT DEFAULT 'bloquear'",
+          );
+        }
       },
     );
   }
@@ -151,14 +165,16 @@ class LocalDbService {
   Future<DateTime?> ultimaSincronizacaoEm() async {
     final database = await db;
     final linhas = await database.query('sincronizacao', where: 'id = 1');
-    if (linhas.isEmpty || linhas.first['ultima_sincronizacao_em'] == null) return null;
+    if (linhas.isEmpty || linhas.first['ultima_sincronizacao_em'] == null)
+      return null;
     return DateTime.parse(linhas.first['ultima_sincronizacao_em'] as String);
   }
 
-  Future<int> desvioServidorSegundos() async {
+  Future<int?> desvioServidorSegundos() async {
     final database = await db;
     final linhas = await database.query('sincronizacao', where: 'id = 1');
-    if (linhas.isEmpty || linhas.first['desvio_servidor_segundos'] == null) return 0;
+    if (linhas.isEmpty || linhas.first['desvio_servidor_segundos'] == null)
+      return null;
     return linhas.first['desvio_servidor_segundos'] as int;
   }
 
@@ -183,16 +199,20 @@ class LocalDbService {
       await txn.delete('marcacao', where: 'enviada = 1');
 
       for (final s in setores) {
-        await txn.insert('setor', s, conflictAlgorithm: ConflictAlgorithm.replace);
+        await txn.insert('setor', s,
+            conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final e in escalas) {
-        await txn.insert('escala', e, conflictAlgorithm: ConflictAlgorithm.replace);
+        await txn.insert('escala', e,
+            conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final a in alocacoes) {
-        await txn.insert('alocacao', a, conflictAlgorithm: ConflictAlgorithm.replace);
+        await txn.insert('alocacao', a,
+            conflictAlgorithm: ConflictAlgorithm.replace);
       }
       for (final m in marcacoesRecentes) {
-        await txn.insert('marcacao', m, conflictAlgorithm: ConflictAlgorithm.replace);
+        await txn.insert('marcacao', m,
+            conflictAlgorithm: ConflictAlgorithm.replace);
       }
 
       await txn.insert(
@@ -211,7 +231,26 @@ class LocalDbService {
 
   Future<void> enfileirarMarcacao(Map<String, Object?> marcacao) async {
     final database = await db;
-    await database.insert('marcacao', marcacao, conflictAlgorithm: ConflictAlgorithm.replace);
+    await database.insert('marcacao', marcacao,
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<Map<String, Object?>?> setorPrincipal() async {
+    final database = await db;
+    final linhas = await database.query('setor', limit: 1);
+    return linhas.isEmpty ? null : linhas.first;
+  }
+
+  Future<List<Map<String, Object?>>> marcacoesDoDia(DateTime dia) async {
+    final database = await db;
+    final inicio = DateTime(dia.year, dia.month, dia.day).toIso8601String();
+    final fim = DateTime(dia.year, dia.month, dia.day + 1).toIso8601String();
+    return database.query(
+      'marcacao',
+      where: 'hora_dispositivo >= ? AND hora_dispositivo < ?',
+      whereArgs: [inicio, fim],
+      orderBy: 'hora_dispositivo ASC',
+    );
   }
 
   Future<List<Map<String, Object?>>> marcacoesPendentes() async {
@@ -226,6 +265,7 @@ class LocalDbService {
 
   Future<void> marcarComoEnviada(String idLocal) async {
     final database = await db;
-    await database.update('marcacao', {'enviada': 1}, where: 'id_local = ?', whereArgs: [idLocal]);
+    await database.update('marcacao', {'enviada': 1},
+        where: 'id_local = ?', whereArgs: [idLocal]);
   }
 }

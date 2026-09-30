@@ -1,6 +1,7 @@
 const prisma = require("../config/prisma");
 const usuarios = require("./usuario.controller");
 const { datasSobrepostas, intervaloValido } = require("../domain/allocation-rules");
+const { encontrarConflitos } = require("../domain/schedule-conflict");
 
 function empresaIdDaRequisicao(req) {
   return req.perfil === "superadmin"
@@ -109,18 +110,41 @@ async function criarAlocacao(req, res) {
     const [funcionario, setor, escala] = await Promise.all([
       prisma.usuario.findFirst({ where: { id: req.params.id, empresaId, perfil: "funcionario", ativo: true }, select: { id: true } }),
       prisma.setor.findFirst({ where: { id: setorId, empresaId }, select: { id: true } }),
-      prisma.escala.findFirst({ where: { id: escalaId, empresaId, setorId }, select: { id: true } }),
+      prisma.escala.findFirst({
+        where: { id: escalaId, empresaId, setorId },
+        include: { turnos: true },
+      }),
     ]);
     if (!funcionario) return res.status(404).json({ erro: "funcionario_nao_encontrado" });
     if (!setor) return res.status(404).json({ erro: "setor_nao_encontrado" });
     if (!escala) return res.status(404).json({ erro: "escala_nao_encontrada_para_setor" });
 
-    const alocacoesExistentes = await prisma.funcionarioSetor.findMany({
+    const alocacoesMesmoSetor = await prisma.funcionarioSetor.findMany({
       where: { empresaId, usuarioId: funcionario.id, setorId },
       select: { vigenciaInicio: true, vigenciaFim: true },
     });
-    if (alocacoesExistentes.some((a) => datasSobrepostas(a.vigenciaInicio, a.vigenciaFim, inicio, fim))) {
+    if (alocacoesMesmoSetor.some((a) => datasSobrepostas(a.vigenciaInicio, a.vigenciaFim, inicio, fim))) {
       return res.status(409).json({ erro: "alocacao_sobreposta", mensagem: "Já existe alocação deste funcionário para o setor nesse período." });
+    }
+
+    const alocacoesExistentes = await prisma.funcionarioSetor.findMany({
+      where: { empresaId, usuarioId: funcionario.id },
+      include: { escala: { include: { turnos: true } } },
+    });
+    const conflitos = encontrarConflitos({
+      id: null,
+      setorId,
+      escalaId,
+      vigenciaInicio: inicio,
+      vigenciaFim: fim,
+      escala: { ...escala, turnos: escala.turnos || [] },
+    }, alocacoesExistentes);
+    if (conflitos.length) {
+      return res.status(409).json({
+        erro: "conflito_de_escala",
+        mensagem: "A jornada projetada conflita com outra escala deste funcionário.",
+        conflitos,
+      });
     }
 
     const alocacao = await prisma.funcionarioSetor.create({

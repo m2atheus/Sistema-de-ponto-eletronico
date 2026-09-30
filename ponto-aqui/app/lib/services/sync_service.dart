@@ -40,8 +40,10 @@ class SyncService {
       final dados = await _api.sincronizar(token: token);
 
       final horaServidor = DateTime.parse(dados['horaServidor'] as String);
-      final alocacoes = (dados['alocacoes'] as List).cast<Map<String, dynamic>>();
-      final marcacoes = (dados['marcacoesRecentes'] as List).cast<Map<String, dynamic>>();
+      final alocacoes =
+          (dados['alocacoes'] as List).cast<Map<String, dynamic>>();
+      final marcacoes =
+          (dados['marcacoesRecentes'] as List).cast<Map<String, dynamic>>();
 
       await _localDb.gravarSincronizacao(
         horaServidor: horaServidor,
@@ -50,6 +52,8 @@ class SyncService {
         alocacoes: alocacoes.map(_mapaAlocacao).toList(),
         marcacoesRecentes: marcacoes.map(_mapaMarcacao).toList(),
       );
+
+      await enviarPendenciasSePossivel();
 
       return ResultadoSincronizacao.sucesso();
     } on TokenInvalidoException {
@@ -60,10 +64,53 @@ class SyncService {
       // gravação é feita numa única transação, o banco local continua com
       // a última sincronização completa, nunca com dado pela metade.
       return ResultadoSincronizacao.semInternet();
+    } on Exception {
+      return ResultadoSincronizacao.semInternet();
     }
   }
 
   Future<DateTime?> ultimaAtualizacaoEm() => _localDb.ultimaSincronizacaoEm();
+
+  Future<ResultadoSincronizacao> enviarPendenciasSePossivel() async {
+    if (!await _conectividade.temInternet())
+      return ResultadoSincronizacao.semInternet();
+    final token = await _auth.token();
+    if (token == null) return ResultadoSincronizacao.semSessao();
+    final pendentes = await _localDb.marcacoesPendentes();
+    if (pendentes.isEmpty) return ResultadoSincronizacao.sucesso();
+
+    try {
+      await _api.enviarLoteMarcacoes(
+        token: token,
+        marcacoes: pendentes
+            .map((marcacao) => {
+                  'idLocal': marcacao['id_local'],
+                  'setorId': marcacao['setor_id'],
+                  'tipo': marcacao['tipo'],
+                  'horaDispositivo': marcacao['hora_dispositivo'],
+                  'desvioServidorSegundos':
+                      marcacao['desvio_servidor_segundos'],
+                  'latitude': marcacao['latitude'],
+                  'longitude': marcacao['longitude'],
+                  'distanciaMetros': marcacao['distancia_metros'],
+                  'dentroPerimetro': marcacao['dentro_perimetro'] == 1,
+                  'origem': marcacao['origem'],
+                })
+            .toList(),
+      );
+      for (final marcacao in pendentes) {
+        await _localDb.marcarComoEnviada(marcacao['id_local'] as String);
+      }
+      return ResultadoSincronizacao.sucesso();
+    } on TokenInvalidoException {
+      await _auth.invalidarSessaoPorTokenExpirado();
+      return ResultadoSincronizacao.tokenInvalido();
+    } on ApiException {
+      return ResultadoSincronizacao.semInternet();
+    } on Exception {
+      return ResultadoSincronizacao.semInternet();
+    }
+  }
 
   Map<String, Object?> _mapaSetor(Map<String, dynamic> s) => {
         'id': s['id'],
@@ -72,6 +119,8 @@ class SyncService {
         'longitude': s['longitude'],
         'raio_metros': s['raioMetros'],
         'ignora_localizacao': (s['ignoraLocalizacao'] as bool) ? 1 : 0,
+        'exige_selfie': (s['exigeSelfie'] as bool?) == true ? 1 : 0,
+        'politica_fora_perimetro': s['politicaForaPerimetro'] ?? 'bloquear',
       };
 
   Map<String, Object?> _mapaEscala(Map<String, dynamic> e) => {
@@ -115,7 +164,8 @@ class ResultadoSincronizacao {
 
   final StatusSincronizacao status;
 
-  factory ResultadoSincronizacao.sucesso() => ResultadoSincronizacao._(StatusSincronizacao.sucesso);
+  factory ResultadoSincronizacao.sucesso() =>
+      ResultadoSincronizacao._(StatusSincronizacao.sucesso);
   factory ResultadoSincronizacao.semInternet() =>
       ResultadoSincronizacao._(StatusSincronizacao.semInternet);
   factory ResultadoSincronizacao.semSessao() =>

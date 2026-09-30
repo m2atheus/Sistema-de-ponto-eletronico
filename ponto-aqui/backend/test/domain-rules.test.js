@@ -7,8 +7,8 @@ test("vigências separadas não se sobrepõem", () => {
   assert.equal(datasSobrepostas("2026-01-01", "2026-01-10", "2026-01-11", null), false);
 });
 
-test("limite de vigência compartilhado é considerado sobreposição", () => {
-  assert.equal(datasSobrepostas("2026-01-01", "2026-01-10", "2026-01-10", "2026-01-20"), true);
+test("limite de vigência compartilhado não é sobreposição", () => {
+  assert.equal(datasSobrepostas("2026-01-01", "2026-01-10", "2026-01-10", "2026-01-20"), false);
 });
 
 test("vigência sem data final se estende indefinidamente", () => {

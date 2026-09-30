@@ -10,6 +10,10 @@ const usuarioRoutes = require("./routes/usuario.routes");
 const setorRoutes = require("./routes/setor.routes");
 const funcionarioRoutes = require("./routes/funcionario.routes");
 const escalaRoutes = require("./routes/escala.routes");
+const feriadoRoutes = require("./routes/feriado.routes");
+const afastamentoRoutes = require("./routes/afastamento.routes");
+const dispositivoRoutes = require("./routes/dispositivo.routes");
+const espelhoRoutes = require("./routes/espelho.routes");
 
 const app = express();
 app.use(cors());
@@ -23,6 +27,10 @@ app.use("/usuarios", usuarioRoutes);
 app.use("/setores", setorRoutes);
 app.use("/funcionarios", funcionarioRoutes);
 app.use("/escalas", escalaRoutes);
+app.use("/feriados", feriadoRoutes);
+app.use("/afastamentos", afastamentoRoutes);
+app.use("/dispositivos", dispositivoRoutes);
+app.use("/espelho", espelhoRoutes);
 
 app.get("/health", (_req, res) => res.json({ ok: true, horaServidor: new Date().toISOString() }));
 

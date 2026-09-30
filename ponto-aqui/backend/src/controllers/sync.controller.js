@@ -6,7 +6,8 @@ const prisma = require("../config/prisma");
 // não depender de rede para montar o dia). Junto vai a hora do servidor,
 // que o app usa para calcular o próprio desvio de relógio.
 async function sincronizar(req, res) {
-  const { usuarioId, empresaId } = req;
+  const { usuarioId, empresaId, dispositivo } = req;
+  const agora = new Date();
 
   const usuario = await prisma.usuario.findUnique({
     where: { id: usuarioId },
@@ -17,19 +18,69 @@ async function sincronizar(req, res) {
     where: {
       usuarioId,
       empresaId,
+      vigenciaInicio: { lte: agora },
       OR: [{ vigenciaFim: null }, { vigenciaFim: { gte: new Date() } }],
     },
     include: { setor: true, escala: true },
   });
+
+  if (dispositivo.tipo === "modo_relogio") {
+    if (!dispositivo.setorId) return res.status(409).json({ erro: "dispositivo_sem_setor" });
+    const setor = await prisma.setor.findFirst({ where: { id: dispositivo.setorId, empresaId } });
+    const alocacoesSetor = await prisma.funcionarioSetor.findMany({
+      where: {
+        empresaId,
+        setorId: dispositivo.setorId,
+        vigenciaInicio: { lte: agora },
+        OR: [{ vigenciaFim: null }, { vigenciaFim: { gte: agora } }],
+      },
+      include: { usuario: { select: { id: true, nome: true, email: true, matricula: true, cargo: true } }, escala: true },
+    });
+    const feriados = await prisma.feriado.findMany({
+      where: { empresaId, data: { gte: agora }, OR: [{ setorId: null }, { setorId: dispositivo.setorId }] },
+      orderBy: { data: "asc" },
+      take: 100,
+    });
+    return res.json({
+      modo: "relogio",
+      horaServidor: agora.toISOString(),
+      usuario,
+      setor,
+      feriados,
+      funcionarios: alocacoesSetor.map((alocacao) => ({
+        ...alocacao.usuario,
+        alocacaoId: alocacao.id,
+        escala: alocacao.escala,
+        vigenciaInicio: alocacao.vigenciaInicio,
+        vigenciaFim: alocacao.vigenciaFim,
+      })),
+    });
+  }
 
   const marcacoesRecentes = await prisma.marcacao.findMany({
     where: { usuarioId, empresaId },
     orderBy: { horaServidor: "desc" },
     take: 50,
   });
+  const setorIds = alocacoes.map((alocacao) => alocacao.setorId);
+  const [feriados, afastamentos] = await Promise.all([
+    prisma.feriado.findMany({
+      where: {
+        empresaId,
+        data: { gte: agora },
+        OR: [{ setorId: null }, ...(setorIds.length ? [{ setorId: { in: setorIds } }] : [])],
+      },
+      orderBy: { data: "asc" },
+      take: 100,
+    }),
+    prisma.afastamento.findMany({
+      where: { empresaId, usuarioId, dataFim: { gte: agora } },
+      orderBy: { dataInicio: "asc" },
+    }),
+  ]);
 
   return res.json({
-    horaServidor: new Date().toISOString(),
+    horaServidor: agora.toISOString(),
     usuario,
     alocacoes: alocacoes.map((a) => ({
       setor: {
@@ -54,6 +105,8 @@ async function sincronizar(req, res) {
       vigenciaInicio: a.vigenciaInicio,
       vigenciaFim: a.vigenciaFim,
     })),
+    feriados,
+    afastamentos,
     marcacoesRecentes,
   });
 }

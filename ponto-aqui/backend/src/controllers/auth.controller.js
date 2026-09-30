@@ -36,16 +36,21 @@ async function login(req, res) {
       });
     }
 
-    const dispositivoAnterior = await prisma.dispositivo.findFirst({
-      where: { usuarioId: usuario.id, status: "ativo" },
+    const dispositivoExistente = await prisma.dispositivo.findUnique({
+      where: { identificador: identificadorDispositivo },
+      select: { id: true, usuarioId: true },
     });
-
-    if (dispositivoAnterior && dispositivoAnterior.identificador !== identificadorDispositivo) {
-      await prisma.dispositivo.update({
-        where: { id: dispositivoAnterior.id },
-        data: { status: "bloqueado" },
+    if (dispositivoExistente?.usuarioId && dispositivoExistente.usuarioId !== usuario.id) {
+      return res.status(401).json({
+        erro: "credenciais_invalidas",
+        mensagem: "Usuário ou senha inválidos.",
       });
     }
+
+    await prisma.dispositivo.updateMany({
+      where: { usuarioId: usuario.id, status: "ativo", identificador: { not: identificadorDispositivo } },
+      data: { status: "bloqueado" },
+    });
 
     const dispositivo = await prisma.dispositivo.upsert({
       where: { identificador: identificadorDispositivo },

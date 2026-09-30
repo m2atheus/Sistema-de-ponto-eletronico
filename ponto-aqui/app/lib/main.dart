@@ -14,7 +14,8 @@ class PontoAquiApp extends StatelessWidget {
     return MaterialApp(
       title: 'Ponto Aqui',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF1F3A5F), useMaterial3: true),
+      theme: ThemeData(
+          colorSchemeSeed: const Color(0xFF1F3A5F), useMaterial3: true),
       home: const SplashScreen(),
     );
   }

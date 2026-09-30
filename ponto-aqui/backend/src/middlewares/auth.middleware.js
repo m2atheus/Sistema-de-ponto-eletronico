@@ -41,6 +41,7 @@ async function autenticar(req, res, next) {
     req.usuarioId = usuario.id;
     req.empresaId = usuario.empresaId;
     req.dispositivoId = dispositivo.id;
+    req.dispositivo = dispositivo;
     req.perfil = usuario.perfil;
     return next();
   } catch (_err) {

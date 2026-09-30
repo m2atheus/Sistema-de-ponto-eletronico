@@ -8,13 +8,14 @@ class ApiService {
   ApiService({
     this.baseUrl = const String.fromEnvironment(
       'API_BASE_URL',
-      defaultValue: 'https://api.pontoaqui.exemplo.com',
+      defaultValue: 'http://localhost:3000',
     ),
   });
 
   final String baseUrl;
 
-  Future<Map<String, dynamic>> getJson({required String path, required String token}) async {
+  Future<Map<String, dynamic>> getJson(
+      {required String path, required String token}) async {
     final resposta = await http.get(
       Uri.parse('$baseUrl$path'),
       headers: {'Authorization': 'Bearer $token'},
@@ -29,7 +30,10 @@ class ApiService {
   }) async {
     final resposta = await http.post(
       Uri.parse('$baseUrl$path'),
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token'
+      },
       body: jsonEncode(body),
     );
     return _decodificar(resposta);
@@ -42,7 +46,10 @@ class ApiService {
   }) async {
     final resposta = await http.patch(
       Uri.parse('$baseUrl$path'),
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token'
+      },
       body: jsonEncode(body),
     );
     return _decodificar(resposta);
@@ -77,7 +84,8 @@ class ApiService {
     if (resposta.statusCode != 200) {
       // Erro genérico de propósito (critério de aceite A01): a tela não
       // diz qual dos dois campos falhou.
-      throw ApiException('Não foi possível entrar. Confira seus dados e tente de novo.');
+      throw ApiException(
+          'Não foi possível entrar. Confira seus dados e tente de novo.');
     }
 
     return jsonDecode(resposta.body) as Map<String, dynamic>;
@@ -94,7 +102,9 @@ class ApiService {
   String _decodificarErro(http.Response resposta) {
     try {
       final corpo = jsonDecode(resposta.body) as Map<String, dynamic>;
-      return corpo['mensagem'] as String? ?? corpo['erro'] as String? ?? 'Não foi possível concluir a operação.';
+      return corpo['mensagem'] as String? ??
+          corpo['erro'] as String? ??
+          'Não foi possível concluir a operação.';
     } catch (_) {
       return 'Não foi possível concluir a operação.';
     }
@@ -122,7 +132,10 @@ class ApiService {
   }) async {
     final resposta = await http.post(
       Uri.parse('$baseUrl/marcacoes/lote'),
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token'
+      },
       body: jsonEncode({'marcacoes': marcacoes}),
     );
 

@@ -4,7 +4,7 @@ function datasSobrepostas(inicioA, fimA, inicioB, fimB) {
   const aFim = fimA == null ? Infinity : new Date(fimA).getTime();
   const bFim = fimB == null ? Infinity : new Date(fimB).getTime();
 
-  return aInicio <= bFim && bInicio <= aFim;
+  return aInicio < bFim && bInicio < aFim;
 }
 
 function intervaloValido(inicio, fim) {

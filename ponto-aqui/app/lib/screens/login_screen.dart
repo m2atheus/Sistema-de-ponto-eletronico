@@ -44,20 +44,24 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await _auth.login(email: _emailController.text.trim(), senha: _senhaController.text);
+      await _auth.login(
+          email: _emailController.text.trim(), senha: _senhaController.text);
       // primeira sincronização, já com o login recém-feito
       await _sync.sincronizarSePossivel();
-        final sessao = await _auth.usuarioLogado();
+      final sessao = await _auth.usuarioLogado();
       if (!mounted) return;
-        final perfil = sessao?['usuario_perfil'] as String?;
-        final Widget destino = const {'superadmin', 'rh', 'gestor'}.contains(perfil)
-          ? const AdminScreen()
-          : const HomeScreen();
-        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => destino));
+      final perfil = sessao?['usuario_perfil'] as String?;
+      final Widget destino =
+          const {'superadmin', 'rh', 'gestor'}.contains(perfil)
+              ? const AdminScreen()
+              : const HomeScreen();
+      Navigator.of(context)
+          .pushReplacement(MaterialPageRoute(builder: (_) => destino));
     } on ApiException catch (e) {
       setState(() => _erro = e.mensagem);
     } catch (_) {
-      setState(() => _erro = 'Não foi possível entrar. Confira seus dados e tente de novo.');
+      setState(() => _erro =
+          'Não foi possível entrar. Confira seus dados e tente de novo.');
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
@@ -75,7 +79,8 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.access_time_filled, size: 56),
               const SizedBox(height: 8),
-              const Text('Ponto Aqui', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const Text('Ponto Aqui',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 32),
               if (_semInternet)
                 Container(
@@ -93,13 +98,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               TextField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'E-mail', border: OutlineInputBorder()),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _senhaController,
-                decoration: const InputDecoration(labelText: 'Senha', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                    labelText: 'Senha', border: OutlineInputBorder()),
                 obscureText: true,
               ),
               if (_erro != null) ...[
@@ -113,7 +120,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? const SizedBox(
                         height: 18,
                         width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
                       )
                     : const Text('Entrar'),
               ),

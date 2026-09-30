@@ -53,6 +53,12 @@ enum OrigemMarcacao {
   offline_sincronizada
 }
 
+enum SituacaoMarcacao {
+  aceita
+  pendente_analise
+  recusada
+}
+
 enum StatusJustificativa {
   aberta
   aprovada
@@ -84,6 +90,8 @@ model Empresa {
 
   usuarios     Usuario[]
   setores      Setor[]
+  feriados     Feriado[]
+  afastamentos Afastamento[]
 
   @@map("empresa")
 }
@@ -108,6 +116,7 @@ model Usuario {
   justificativas    Justificativa[]
   ajustes           AjusteMarcacao[]
   fechamentos       FechamentoPeriodo[]
+  afastamentos      Afastamento[]
 
   @@map("usuario")
   @@unique([empresaId, matricula])
@@ -130,6 +139,7 @@ model Setor {
   alocacoes    FuncionarioSetor[]
   dispositivos Dispositivo[]
   marcacoes    Marcacao[]
+  feriados     Feriado[]
 
   @@map("setor")
 }
@@ -216,6 +226,8 @@ model Marcacao {
   dentroPerimetro        Boolean?       @map("dentro_perimetro")
   selfieUrl              String?        @map("selfie_url")
   origem                 OrigemMarcacao
+  situacao               SituacaoMarcacao @default(aceita)
+  recebidoEm             DateTime        @default(now()) @map("recebido_em")
   idLocal                String         @unique @map("id_local")
   criadoEm               DateTime       @default(now()) @map("criado_em")
 
@@ -225,6 +237,39 @@ model Marcacao {
   ajuste      AjusteMarcacao?
 
   @@map("marcacao")
+}
+
+model Feriado {
+  id        String   @id @default(uuid())
+  empresaId String   @map("empresa_id")
+  setorId   String?  @map("setor_id")
+  data      DateTime
+  descricao String
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  setor   Setor?  @relation(fields: [setorId], references: [id])
+
+  @@unique([empresaId, setorId, data])
+  @@index([empresaId, data])
+  @@map("feriado")
+}
+
+model Afastamento {
+  id         String   @id @default(uuid())
+  empresaId  String   @map("empresa_id")
+  usuarioId  String   @map("usuario_id")
+  tipo       String
+  dataInicio DateTime @map("data_inicio")
+  dataFim    DateTime @map("data_fim")
+  anexoUrl   String?  @map("anexo_url")
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([empresaId, usuarioId, dataInicio, dataFim])
+  @@map("afastamento")
 }
 
 model Justificativa {

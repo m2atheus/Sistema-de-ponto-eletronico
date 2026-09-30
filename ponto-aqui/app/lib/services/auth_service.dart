@@ -15,13 +15,16 @@ class AuthService {
   final _armazenamentoSeguro = const FlutterSecureStorage();
 
   static const _chaveToken = 'ponto_aqui_token';
-  static const _chaveIdentificadorDispositivo = 'ponto_aqui_identificador_dispositivo';
+  static const _chaveIdentificadorDispositivo =
+      'ponto_aqui_identificador_dispositivo';
 
   Future<String> _identificadorDispositivo() async {
-    var identificador = await _armazenamentoSeguro.read(key: _chaveIdentificadorDispositivo);
+    var identificador =
+        await _armazenamentoSeguro.read(key: _chaveIdentificadorDispositivo);
     if (identificador == null) {
       identificador = const Uuid().v4();
-      await _armazenamentoSeguro.write(key: _chaveIdentificadorDispositivo, value: identificador);
+      await _armazenamentoSeguro.write(
+          key: _chaveIdentificadorDispositivo, value: identificador);
     }
     return identificador;
   }

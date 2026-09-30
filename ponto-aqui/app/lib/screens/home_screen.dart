@@ -54,6 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     await _carregar();
+  if (!mounted) return;
     setState(() => _atualizando = false);
 
     final mensagem = switch (resultado.status) {

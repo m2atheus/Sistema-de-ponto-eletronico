@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/connectivity_service.dart';
 import '../services/sync_service.dart';
+import 'admin_screen.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -46,9 +47,13 @@ class _LoginScreenState extends State<LoginScreen> {
       await _auth.login(email: _emailController.text.trim(), senha: _senhaController.text);
       // primeira sincronização, já com o login recém-feito
       await _sync.sincronizarSePossivel();
-
+        final sessao = await _auth.usuarioLogado();
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
+        final perfil = sessao?['usuario_perfil'] as String?;
+        final Widget destino = const {'superadmin', 'rh', 'gestor'}.contains(perfil)
+          ? const AdminScreen()
+          : const HomeScreen();
+        Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => destino));
     } on ApiException catch (e) {
       setState(() => _erro = e.mensagem);
     } catch (_) {

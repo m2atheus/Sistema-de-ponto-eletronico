@@ -5,9 +5,59 @@ import 'package:http/http.dart' as http;
 /// responsabilidade de quem chama (SyncService, AuthService), que sempre
 /// sabe que a chamada pode simplesmente não acontecer.
 class ApiService {
-  ApiService({this.baseUrl = 'https://api.pontoaqui.exemplo.com'});
+  ApiService({
+    this.baseUrl = const String.fromEnvironment(
+      'API_BASE_URL',
+      defaultValue: 'https://api.pontoaqui.exemplo.com',
+    ),
+  });
 
   final String baseUrl;
+
+  Future<Map<String, dynamic>> getJson({required String path, required String token}) async {
+    final resposta = await http.get(
+      Uri.parse('$baseUrl$path'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    return _decodificar(resposta);
+  }
+
+  Future<Map<String, dynamic>> postJson({
+    required String path,
+    required String token,
+    required Map<String, Object?> body,
+  }) async {
+    final resposta = await http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode(body),
+    );
+    return _decodificar(resposta);
+  }
+
+  Future<Map<String, dynamic>> patchJson({
+    required String path,
+    required String token,
+    required Map<String, Object?> body,
+  }) async {
+    final resposta = await http.patch(
+      Uri.parse('$baseUrl$path'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode(body),
+    );
+    return _decodificar(resposta);
+  }
+
+  Future<void> deleteJson({required String path, required String token}) async {
+    final resposta = await http.delete(
+      Uri.parse('$baseUrl$path'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (resposta.statusCode < 200 || resposta.statusCode >= 300) {
+      final corpo = _decodificarErro(resposta);
+      throw ApiException(corpo);
+    }
+  }
 
   Future<Map<String, dynamic>> login({
     required String email,
@@ -31,6 +81,23 @@ class ApiService {
     }
 
     return jsonDecode(resposta.body) as Map<String, dynamic>;
+  }
+
+  Map<String, dynamic> _decodificar(http.Response resposta) {
+    if (resposta.statusCode < 200 || resposta.statusCode >= 300) {
+      throw ApiException(_decodificarErro(resposta));
+    }
+    if (resposta.body.isEmpty) return {};
+    return jsonDecode(resposta.body) as Map<String, dynamic>;
+  }
+
+  String _decodificarErro(http.Response resposta) {
+    try {
+      final corpo = jsonDecode(resposta.body) as Map<String, dynamic>;
+      return corpo['mensagem'] as String? ?? corpo['erro'] as String? ?? 'Não foi possível concluir a operação.';
+    } catch (_) {
+      return 'Não foi possível concluir a operação.';
+    }
   }
 
   Future<Map<String, dynamic>> sincronizar({required String token}) async {

@@ -23,6 +23,13 @@ enum TipoEscala {
   escala_turno
 }
 
+enum ModeloEscala {
+  ciclo_24x72
+  ciclo_12x36
+  diurno
+  comercial_5x2
+}
+
 enum TipoDispositivo {
   pessoal
   modo_relogio
@@ -62,10 +69,16 @@ enum StatusFechamento {
   fechado
 }
 
+enum PoliticaForaPerimetro {
+  bloquear
+  pendente_analise
+}
+
 model Empresa {
   id          String   @id @default(uuid())
   razaoSocial String   @map("razao_social")
-  cnpj        String   @unique
+  cnpj        String?  @unique
+  contato     String?
   ativo       Boolean  @default(true)
   criadoEm    DateTime @default(now()) @map("criado_em")
 
@@ -80,7 +93,10 @@ model Usuario {
   empresaId String?  @map("empresa_id")
   nome      String
   email     String   @unique
+  login     String?  @unique
   senhaHash String   @map("senha_hash")
+  matricula String?
+  cargo     String?
   perfil    Perfil
   ativo     Boolean  @default(true)
   criadoEm  DateTime @default(now()) @map("criado_em")
@@ -94,16 +110,20 @@ model Usuario {
   fechamentos       FechamentoPeriodo[]
 
   @@map("usuario")
+  @@unique([empresaId, matricula])
 }
 
 model Setor {
   id                 String   @id @default(uuid())
   empresaId          String   @map("empresa_id")
   nome               String
+  endereco           String?
   latitude           Float
   longitude          Float
   raioMetros         Int      @map("raio_metros")
   ignoraLocalizacao  Boolean  @default(false) @map("ignora_localizacao")
+  exigeSelfie        Boolean  @default(false) @map("exige_selfie")
+  politicaForaPerimetro PoliticaForaPerimetro @default(bloquear) @map("politica_fora_perimetro")
 
   empresa      Empresa            @relation(fields: [empresaId], references: [id])
   escalas      Escala[]
@@ -120,14 +140,31 @@ model Escala {
   setorId             String     @map("setor_id")
   nome                String
   tipo                TipoEscala
+  modelo              ModeloEscala @default(comercial_5x2)
+  dataReferencia      DateTime?   @map("data_referencia")
   cargaDiariaMinutos  Int        @map("carga_diaria_minutos")
   toleranciaMinutos   Int        @map("tolerancia_minutos")
   regraJson           Json       @map("regra_json")
 
   setor     Setor              @relation(fields: [setorId], references: [id])
   alocacoes FuncionarioSetor[]
+  turnos    TurnoEscala[]
 
   @@map("escala")
+}
+
+model TurnoEscala {
+  id               String   @id @default(uuid())
+  escalaId         String   @map("escala_id")
+  diaSemana        Int?     @map("dia_semana")
+  horaInicio       String   @map("hora_inicio")
+  horaFim          String   @map("hora_fim")
+  intervaloMinutos Int      @default(0) @map("intervalo_minutos")
+
+  escala Escala @relation(fields: [escalaId], references: [id], onDelete: Cascade)
+
+  @@index([escalaId, diaSemana])
+  @@map("turno_escala")
 }
 
 model FuncionarioSetor {
@@ -148,7 +185,7 @@ model FuncionarioSetor {
 
 model Dispositivo {
   id             String            @id @default(uuid())
-  empresaId      String            @map("empresa_id")
+  empresaId      String?           @map("empresa_id")
   usuarioId      String?           @map("usuario_id")
   setorId        String?           @map("setor_id")
   identificador  String            @unique

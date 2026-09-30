@@ -35,10 +35,13 @@ async function sincronizar(req, res) {
       setor: {
         id: a.setor.id,
         nome: a.setor.nome,
+        endereco: a.setor.endereco,
         latitude: a.setor.latitude,
         longitude: a.setor.longitude,
         raioMetros: a.setor.raioMetros,
         ignoraLocalizacao: a.setor.ignoraLocalizacao,
+        exigeSelfie: a.setor.exigeSelfie,
+        politicaForaPerimetro: a.setor.politicaForaPerimetro,
       },
       escala: {
         id: a.escala.id,

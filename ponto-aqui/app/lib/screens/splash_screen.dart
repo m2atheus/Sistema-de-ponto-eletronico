@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../services/sync_service.dart';
+import 'admin_screen.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 
@@ -36,10 +37,16 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     final aindaLogado = await _auth.sessaoAtiva();
+    final sessao = aindaLogado ? await _auth.usuarioLogado() : null;
+    if (!mounted) return;
+    final perfil = sessao?['usuario_perfil'] as String?;
+    final Widget destino = !aindaLogado
+        ? const LoginScreen()
+        : const {'superadmin', 'rh', 'gestor'}.contains(perfil)
+            ? const AdminScreen()
+            : const HomeScreen();
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => aindaLogado ? const HomeScreen() : const LoginScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => destino),
     );
   }
 

@@ -1,0 +1,21 @@
+# Dependencies and generated tooling
+**/node_modules/
+**/.dart_tool/
+**/.pub-cache/
+**/.flutter-plugins-dependencies
+**/coverage/
+
+# Flutter build output
+**/build/
+**/windows/flutter/ephemeral/
+
+# Local configuration and credentials
+**/.env
+**/.env.*
+!**/.env.example
+/Login.MD
+
+# Temporary files
+*.tmp
+*.log
+.DS_Store
